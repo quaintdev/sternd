@@ -161,11 +161,6 @@ class _MyHomePageState extends State<MyHomePage> {
           );
         },
       )),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
@@ -198,9 +193,10 @@ class _FullScreenDilogPageState extends State<_FullScreenDialogDemo> {
           child: FutureBuilder<List<Website>>(
         future: futureClientData,
         builder: (context, snapshot) {
-          if (Util.config['ip']==null){
+          if (Util.config['ip'] == null) {
             print(Util.config['ip']);
-            return Text("Please configure grimd server ip/port from settings menu");
+            return Text(
+                "Please configure grimd server ip/port from settings menu");
           }
           if (snapshot.connectionState != ConnectionState.done) {
             return CircularProgressIndicator();
@@ -217,6 +213,45 @@ class _FullScreenDilogPageState extends State<_FullScreenDialogDemo> {
                 title: Text(website.address,
                     style: TextStyle(
                         color: website.isBlocked ? Colors.red : Colors.green)),
+                subtitle: Text(website.date.hour.toString() +
+                    ":" +
+                    website.date.minute.toString()),
+                trailing: Switch(
+                  onChanged: (bool value) {
+                    if (!website.isBlocked)
+                      http
+                          .get('http://' +
+                              Util.config['ip'] +
+                              ':' +
+                              Util.config['port'].toString() +
+                              '/blockcache/set/:key')
+                          .then((response) {
+                        if (response.statusCode == 200) {
+                          setState(() {
+                            website.isBlocked =
+                                jsonDecode(response.body)['success'];
+                          });
+                        }
+                      });
+                    else {
+                      http
+                          .get('http://' +
+                              Util.config['ip'] +
+                              ':' +
+                              Util.config['port'].toString() +
+                              '/blockcache/remove/:key')
+                          .then((response) {
+                        if (response.statusCode == 200) {
+                          setState(() {
+                            website.isBlocked =
+                                !jsonDecode(response.body)['success'];
+                          });
+                        }
+                      });
+                    }
+                  },
+                  value: website.isBlocked,
+                ),
                 onTap: () {
                   Navigator.push<void>(
                     context,
@@ -274,7 +309,7 @@ class Client {
               address: website['query']['name'].toString(),
               visitTime: website['date'],
               isBlocked: website['blocked'])));
-      return visitedWebsites;
+      return visitedWebsites.reversed.toList();
     } else {
       throw Exception('Failed to load album');
     }
@@ -287,6 +322,6 @@ class Website {
   DateTime date;
 
   Website({this.address, int visitTime, this.isBlocked}) {
-    this.date = DateTime.fromMillisecondsSinceEpoch(visitTime);
+    this.date = DateTime.fromMillisecondsSinceEpoch(visitTime * 1000);
   }
 }
